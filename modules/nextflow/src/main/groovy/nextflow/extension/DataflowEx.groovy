@@ -21,7 +21,6 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
 import groovy.transform.CompileStatic
-import groovy.transform.PackageScope
 import groovy.util.logging.Slf4j
 import groovyx.gpars.dataflow.DataflowBroadcast
 import groovyx.gpars.dataflow.DataflowQueue
@@ -71,17 +70,19 @@ class DataflowEx {
     final static MetaClass meta = DataflowEx.getMetaClass()
 
     static {
-        methodNames = getMethods0()
+        methodNames = getDeclaredExtensionMethods0()
         log.trace "Dataflow extension methods: ${methodNames.sort().join(',')}"
     }
 
     @CompileStatic
-    static private Set<String> getMethods0() {
+    static private Set<String> getDeclaredExtensionMethods0() {
         def result = new HashSet<>(30)
         def methods = DataflowEx.class.getDeclaredMethods()
         for( def handle : methods ) {
+            if( !Modifier.isPublic(handle.getModifiers()) ) continue
+            if( Modifier.isStatic(handle.getModifiers()) ) continue
             def params=handle.getParameterTypes()
-            if( Modifier.isPublic(handle.getModifiers()) && !Modifier.isStatic(handle.getModifiers()) && params.length>0 && isReadChannel(params[0]) )
+            if( params.length>0 && isReadChannel(params[0]) )
                 result.add(handle.name)
         }
         return result
@@ -111,15 +112,22 @@ class DataflowEx {
         else
             return (T)source
     }
+//
+//    private void checkDeprecation(String name) {
+//        meta.getMetaMethod()
+//    }
 
     @CompileStatic
-    Object invokeMethod(Object channel, String methodName, Object[] args) {
+    Object invokeMethod(Object channel, String method, Object[] args) {
+        //checkDeprecation()
         final DataflowReadChannel source = read0(channel)
-        for( int i=0; i<args.length; i++ )
-            args[i] = read0(args[i])
-        
-        // TODO sanitize channels passed are args
-        return invokeMethod0(source,methodName,args)
+
+        if( method != 'separate' && method != 'choice' ) {
+            for( int i=0; i<args.length; i++ )
+                args[i] = read0(args[i])
+        }
+
+        return invokeMethod0(source,method,args)
     }
 
     @CompileStatic
@@ -765,7 +773,7 @@ class DataflowEx {
      * @return A {@code DataflowVariable} returning the a {@code Map} containing the counting values for each key
      */
     @Deprecated
-    DataflowWriteChannel<Map> countBy(final DataflowReadChannel<?> source ) {
+    DataflowWriteChannel<Map> countBy(final DataflowReadChannel source ) {
         countBy(source, { it })
     }
 
@@ -777,7 +785,7 @@ class DataflowEx {
      * @return
      */
     @Deprecated
-    DataflowWriteChannel<Map> countBy(final DataflowReadChannel<?> source, final Closure criteria ) {
+    DataflowWriteChannel<Map> countBy(final DataflowReadChannel source, final Closure criteria ) {
 
         final target = new DataflowVariable()
 
@@ -1013,6 +1021,8 @@ class DataflowEx {
      * @param targets The routing map i.e. a {@code Map} associating each key to the target channel
      * @param mapper A optional mapping function that given an entry return its key
      */
+    // NO DAG
+    @Deprecated
     void route( final DataflowReadChannel source, Map<?,DataflowWriteChannel> targets, Closure mapper = DEFAULT_MAPPING_CLOSURE ) {
         log.warn "Operator `route` is deprecated -- It will be removed in a future release"
 
@@ -1038,6 +1048,7 @@ class DataflowEx {
         NodeMarker.addOperatorNode('route', source, targets.values())
     }
 
+    @Deprecated
     DataflowWriteChannel route( final DataflowReadChannel source, final Closure mapper = DEFAULT_MAPPING_CLOSURE ) {
         assert !(source instanceof DataflowExpression)
         log.warn "Operator `route` is deprecated and it will be removed in a future release"
@@ -1465,24 +1476,28 @@ class DataflowEx {
      * @param source The source channel
      * @param outputs An open array of target channels
      */
+    // NO DAG
     @Deprecated
     void separate( DataflowReadChannel source, final DataflowWriteChannel... outputs ) {
         new SeparateOp(source, outputs as List<DataflowWriteChannel>).apply()
         NodeMarker.addOperatorNode('separate', source, outputs)
     }
 
+    // NO DAG
     @Deprecated
     void separate(final DataflowReadChannel source, final List<DataflowWriteChannel> outputs) {
         new SeparateOp(source, outputs).apply()
         NodeMarker.addOperatorNode('separate', source, outputs)
     }
 
+    // NO DAG
     @Deprecated
     void separate(final DataflowReadChannel source, final List<DataflowWriteChannel> outputs, final Closure<List> code) {
         new SeparateOp(source, outputs, code).apply()
         NodeMarker.addOperatorNode('separate', source, outputs)
     }
 
+    // NO DAG
     @Deprecated
     List<DataflowReadChannel> separate( final DataflowReadChannel source, int n ) {
         def outputs = new SeparateOp(source, n).apply()
@@ -1490,6 +1505,7 @@ class DataflowEx {
         return outputs
     }
 
+    // NO DAG
     @Deprecated
     List<DataflowReadChannel> separate( final DataflowReadChannel source, int n, Closure mapper  ) {
         def outputs = new SeparateOp(source, n, mapper).apply()
@@ -1497,12 +1513,14 @@ class DataflowEx {
         return outputs
     }
 
+    // NO DAG
     @Deprecated
     void into( DataflowReadChannel source, final DataflowWriteChannel... targets ) {
         new IntoOp(source, targets as List<DataflowWriteChannel>).apply()
         NodeMarker.addOperatorNode('into', source, targets)
     }
 
+    // NO DAG
     @Deprecated
     List<DataflowReadChannel> into( final DataflowReadChannel source, int n ) {
         def outputs = new IntoOp(source,n).apply().getOutputs()
@@ -1545,12 +1563,14 @@ class DataflowEx {
      * @param holder The closure defining the new variable name
      * @return The tap resulting dataflow channel
      */
+    // NO DAG
     DataflowWriteChannel tap( final DataflowReadChannel source, final Closure holder ) {
         def tap = new TapOp(source, holder).apply()
         NodeMarker.addOperatorNode('tap', source, tap.outputs)
         return tap.result
     }
 
+    // NO DAG
     DataflowWriteChannel tap( final DataflowReadChannel source, final DataflowWriteChannel target ) {
         def tap = new TapOp(source, target).apply()
         NodeMarker.addOperatorNode('tap', source, tap.outputs)
@@ -1630,12 +1650,12 @@ class DataflowEx {
             target.bind(it)
         }
 
-        apply. onComplete = { close0(target) }
+        apply. onComplete = { ChannelHelper.close0(target) }
 
         subscribeImpl(source,apply)
 
         NodeMarker.addOperatorNode('view', source, target)
-        return target;
+        return target
 
     }
 
@@ -1643,23 +1663,13 @@ class DataflowEx {
         view(source, Collections.emptyMap(), closure)
     }
 
-    @PackageScope
-    static DataflowWriteChannel close0(DataflowWriteChannel source) {
-        if( source instanceof DataflowExpression ) {
-            if( !source.isBound() )
-                source.bind(Channel.STOP)
-        }
-        else {
-            source.bind(Channel.STOP)
-        }
-        return source
-    }
-
     void choice(final DataflowReadChannel source, final List<DataflowWriteChannel> outputs, final Closure<Integer> code) {
         new ChoiceOp(source,outputs,code).apply()
         NodeMarker.addOperatorNode('choice', source, outputs)
     }
 
+    // NO DAG
+    @Deprecated
     DataflowWriteChannel merge(final DataflowReadChannel source, final DataflowReadChannel other, final Closure closure=null) {
         final result = ChannelHelper.createBy(source)
         final inputs = [source, other]
@@ -1669,6 +1679,8 @@ class DataflowEx {
         return result;
     }
 
+    // NO DAG
+    @Deprecated
     DataflowWriteChannel merge(final DataflowReadChannel source, final DataflowReadChannel... others) {
         final result = ChannelHelper.createBy(source)
         final List<DataflowReadChannel> inputs = new ArrayList<DataflowReadChannel>(1 + others.size())
@@ -1679,6 +1691,8 @@ class DataflowEx {
         return result;
     }
 
+    // NO DAG
+    @Deprecated
     DataflowWriteChannel merge(final DataflowReadChannel source, final List<DataflowReadChannel> others, final Closure closure=null) {
         final result = ChannelHelper.createBy(source)
         final List<DataflowReadChannel> inputs = new ArrayList<DataflowReadChannel>(1 + others.size())
@@ -1788,6 +1802,7 @@ class DataflowEx {
         return result
     }
 
+    @Deprecated
     DataflowWriteChannel countText(DataflowReadChannel source) {
         log.warn "Method `countText` has been deprecated -- Use `countLines` instead"
         countLines(source)

@@ -25,6 +25,10 @@ class ScriptMeta {
         REGISTRY.get(script)
     }
 
+    static ScriptMeta current() {
+        get( ScriptScope.get().current() )
+    }
+
     private Class<? extends BaseScript> clazz
     private Path scriptPath
     private ScriptIncludes includes
@@ -92,7 +96,7 @@ class ScriptMeta {
         definitions.find { it.name == name }
     }
 
-    WorkflowDef getWorkflowDef(String name) {
+    WorkflowDef getDefinedWorkflow(String name) {
         (WorkflowDef)definitions.find { it.name == name }
     }
 
@@ -127,7 +131,7 @@ class ScriptMeta {
         return result
     }
 
-    protected Set<InvokableDef> getIncludedDefinitions(Class type) {
+    protected <T> Set<T> getIncludedDefinitions(Class<T> type) {
         if( !includes )
             return Collections.emptySet()
 
@@ -152,6 +156,30 @@ class ScriptMeta {
         result.addAll( getDefinedWorkflows() )
         result.addAll( getIncludedDefinitions(WorkflowDef) )
         return result
+    }
+
+    WorkflowDef getWorkflow(String name) {
+        for( def work : getDefinedWorkflows() ) {
+            if( work.name == name )
+                return work
+        }
+        for( def work : getIncludedDefinitions(WorkflowDef) ) {
+            if( work.name == name )
+                return work
+        }
+        return null
+    }
+
+    ProcessDef getProcess(String name) {
+        for( def proc : getDefinedProcesses() ) {
+            if( proc.name == name )
+                return proc
+        }
+        for( def proc : getIncludedDefinitions(ProcessDef) ) {
+            if( proc.name == name )
+                return proc
+        }
+        return null
     }
 
     Set<FunctionDef> getFunctions() {

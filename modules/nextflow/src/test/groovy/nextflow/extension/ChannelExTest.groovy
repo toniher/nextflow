@@ -46,4 +46,5 @@ class ChannelExTest extends Specification {
         new DataflowBroadcast().createReadChannel().isChannelQueue()
         !new DataflowVariable().isChannelQueue()
     }
+
 }

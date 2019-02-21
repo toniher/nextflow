@@ -182,7 +182,13 @@ abstract class BaseScript extends Script {
 
     Object run() {
         setup()
-        runScript()
+        ScriptScope.get().push(this)
+        try {
+            runScript()
+        }
+        finally {
+            ScriptScope.get().pop()
+        }
     }
 
     protected abstract Object runScript()

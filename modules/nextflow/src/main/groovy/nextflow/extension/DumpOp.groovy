@@ -89,7 +89,7 @@ class DumpOp {
             target.bind(it)
         }
 
-        events.onComplete = { DataflowEx.close0(target) }
+        events.onComplete = { ChannelHelper.close0(target) }
 
         DataflowHelper.subscribeImpl(source, events)
         return target

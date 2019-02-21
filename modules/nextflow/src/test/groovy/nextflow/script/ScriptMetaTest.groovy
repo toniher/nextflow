@@ -24,7 +24,7 @@ class ScriptMetaTest extends Specification {
         def proc1 = new ProcessDef(script, 'proc1', Mock(ProcessConfig), Mock(TaskBody))
         def proc2 = new ProcessDef(script, 'proc2', Mock(ProcessConfig), Mock(TaskBody))
         def func1 = new FunctionDef(name: 'func1')
-        def work1 = new WorkflowDef(Mock(TaskBody), 'workflow1')
+        def work1 = new WorkflowDef(Mock(TaskBody), 'work1')
 
 
         def inc_p1 = new ProcessDef(script, 'inc_p1', Mock(ProcessConfig), Mock(TaskBody))
@@ -46,7 +46,7 @@ class ScriptMetaTest extends Specification {
         meta.addDefinition(proc2)
 
         then:
-        meta.getDefinition('workflow1') == work1
+        meta.getDefinition('work1') == work1
         meta.getDefinition('func1') == func1
         meta.getDefinition('proc1') == proc1
         meta.getDefinition('proc2') == proc2
@@ -54,19 +54,19 @@ class ScriptMetaTest extends Specification {
         meta.getDefinition('inc_w2') == null
 
         then:
-        meta.getInvokable('workflow1') == work1
+        meta.getInvokable('work1') == work1
         meta.getInvokable('proc1') == proc1
         meta.getInvokable('inc_p1') == inc_p1
         meta.getInvokable('inc_w2') == inc_w2
 
         then:
-        meta.getAllDefinedNames() == ['proc1','proc2','func1','workflow1'] as Set
+        meta.getAllDefinedNames() == ['proc1','proc2','func1','work1'] as Set
 
         then:
         meta.containsDef('proc1')
         meta.containsDef('proc2')
         meta.containsDef('func1')
-        meta.containsDef('workflow1')
+        meta.containsDef('work1')
         !meta.containsDef('proc3')
 
         then:
@@ -80,6 +80,13 @@ class ScriptMetaTest extends Specification {
         meta.getProcesses() == [proc1, proc2, inc_p1] as Set
         meta.getProcessNames() == ['proc1','proc2', 'inc_p1'] as Set
 
+        then:
+        meta.getProcess('proc1') == proc1
+        meta.getProcess('inc_p1') == inc_p1
+        meta.getProcess('foo') == null
+        meta.getWorkflow('work1') == work1
+        meta.getWorkflow('inc_w1') == inc_w1
+        meta.getWorkflow('func1') == null
 
     }
 }

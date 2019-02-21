@@ -1,6 +1,7 @@
 package nextflow.extension
 
 import groovy.transform.CompileStatic
+import groovy.transform.PackageScope
 import groovyx.gpars.dataflow.DataflowBroadcast
 import groovyx.gpars.dataflow.DataflowQueue
 import groovyx.gpars.dataflow.DataflowReadChannel
@@ -8,6 +9,7 @@ import groovyx.gpars.dataflow.DataflowVariable
 import groovyx.gpars.dataflow.DataflowWriteChannel
 import groovyx.gpars.dataflow.expression.DataflowExpression
 import groovyx.gpars.dataflow.stream.DataflowStreamReadAdapter
+import nextflow.Channel
 import nextflow.script.WorkflowScope
 /**
  *
@@ -77,6 +79,19 @@ class ChannelHelper {
 
     static boolean isChannelQueue(obj) {
         obj instanceof DataflowQueue || obj instanceof DataflowStreamReadAdapter
+    }
+
+
+    @PackageScope
+    static DataflowWriteChannel close0(DataflowWriteChannel source) {
+        if( source instanceof DataflowExpression ) {
+            if( !source.isBound() )
+                source.bind(Channel.STOP)
+        }
+        else {
+            source.bind(Channel.STOP)
+        }
+        return source
     }
 
 }

@@ -483,4 +483,43 @@ class BaseScriptTest extends Specification {
         result.val == 'echo Hola mundo'
     }
 
+    def 'should pipe processes' () {
+        given:
+        def folder = Files.createTempDirectory('test')
+        def MODULE = folder.resolve('module.nf')
+        def SCRIPT = folder.resolve('main.nf')
+
+        MODULE.text = '''
+        process foo {
+          input: val data 
+          output: val result
+          exec:
+            result = "$data mundo"
+        }     
+        
+        process bar {
+            input: val data 
+            output: val result
+            exec: 
+              result = data.toUpperCase()
+        }   
+        
+        '''
+
+        SCRIPT.text = """
+        require "$MODULE"      
+
+        workflow {
+           Channel.from('Hello') | foo | bar
+        }
+        """
+
+        when:
+        def runner = new MockScriptRunner()
+        def result = runner.setScript(SCRIPT).execute()
+
+        then:
+        result.val == 'HELLO MUNDO'
+    }
+
 }

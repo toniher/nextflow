@@ -1,5 +1,6 @@
 package nextflow.script
 
+
 import groovy.transform.CompileStatic
 import groovy.transform.PackageScope
 import groovyx.gpars.dataflow.DataflowVariable
@@ -51,7 +52,7 @@ class WorkflowDef implements InvokableDef, Cloneable {
 
     @PackageScope List<String> getDeclaredVariables() { new ArrayList<String>(variableNames) }
 
-    @PackageScope Binding getContext() { context }
+    Binding getContext() { context }
 
     private Set<String> getVarNames0() {
         def variableNames = body.getValNames()
@@ -123,7 +124,22 @@ class WorkflowDef implements InvokableDef, Cloneable {
 
     protected Object run0(Object[] args) {
         // setup the execution context
-        context = new Binding()
+        context = new Binding() {
+            @Override
+            Object getProperty(String propertyName) {
+                try {
+                    return super.getProperty(propertyName)
+                }
+                catch (MissingPropertyException e) {
+                    def meta = ScriptMeta.current()
+                    def result = meta?.getProcess(propertyName) ?: meta?.getWorkflow(propertyName)
+                    if( result == null )
+                        throw new MissingPropertyException("Not such property: $propertyName in workflow execution CONTEXT")
+                    return result
+                }
+
+            }
+        }
         // setup the workflow inputs
         collectInputs(context, args)
         // invoke the workflow execution

@@ -17,12 +17,16 @@
 package nextflow.extension
 
 import groovyx.gpars.agent.Agent
+import groovyx.gpars.dataflow.DataflowBroadcast
 import groovyx.gpars.dataflow.DataflowQueue
 import groovyx.gpars.dataflow.DataflowReadChannel
 import groovyx.gpars.dataflow.DataflowWriteChannel
 import nextflow.Channel
 import nextflow.Global
 import nextflow.dag.NodeMarker
+import nextflow.script.ProcessDef
+import nextflow.script.WorkflowDef
+import nextflow.script.WorkflowScope
 /**
  *
  * @author Paolo Di Tommaso <paolo.ditommaso@gmail.com>
@@ -95,7 +99,7 @@ class ChannelEx {
      */
     @Deprecated
     static DataflowWriteChannel close(DataflowWriteChannel source) {
-        return DataflowEx.close0(source)
+        return ChannelHelper.close0(source)
     }
 
     /**
@@ -114,4 +118,31 @@ class ChannelEx {
         }
 
     }
+
+    static private DataflowReadChannel read0(DataflowWriteChannel channel) {
+        if( channel instanceof DataflowReadChannel )
+            return channel
+        if( channel instanceof DataflowBroadcast )
+            return channel.createReadChannel()
+        throw new IllegalArgumentException("Illegal pipe input channel: ${channel?.class?.name}")
+    }
+
+    static private WorkflowDef checkScope() {
+        def scope = WorkflowScope.get().current()
+        if( scope == null ) throw new IllegalArgumentException("Process invocation are only allowed within a workflow context")
+        return scope
+    }
+
+    static Object or( DataflowWriteChannel left, Object right ) {
+        def scope = checkScope()
+        if( right instanceof ProcessDef ) {
+            return right.invoke(read0(left), scope.context)
+        }
+        if( right instanceof WorkflowDef ) {
+            return right.invoke(read0(left), scope.context)
+        }
+        throw new IllegalArgumentException("Pipe right operand must be a process or a workflow definition")
+    }
+
+
 }
